@@ -24,13 +24,13 @@ class binance_api():
     def push_binance_to_server(self,df):
         with get_mysql_connection(self.conf) as con:
             con.execute("drop table if exists temp_binance;")
-            con.execute("CREATE TABLE temp_binance like binance")
+            con.execute("CREATE TABLE temp_binance like oracle")
             df.to_sql('temp_binance',con,if_exists='append',index=False)
-            con.execute("insert ignore into binance (select * from temp_binance);")
+            con.execute("insert ignore into oracle (select * from temp_binance);")
             con.execute("DROP TABLE temp_binance;")
             
     def get_price_data(self,ticker,startTimestamp,endTimestamp):
-        
+
         ticker = ticker.upper()
         
         #startPeriod in timestamp in milli seconds
@@ -45,16 +45,16 @@ class binance_api():
 
         timestampList=list()
 
-        for start in range(endTimestamp,endTimestamp+1,60*500):
+        for start in range(startTimestamp,endTimestamp+1,60*500):
             end= min(start+60*500,endTimestamp)
             timestampList.append(self.timestampTupple(start+1,end))
-                
+        
         for timestampRange in timestampList:
-                
-            data = self.binanceClient.get_historical_klines(pair, 
-                                                            binanceClient.KLINE_INTERVAL_1MINUTE, 
-                                                            int(timestampRange.startTime*1000),
-                                                            int(timestampRange.endTime*1000))
+            
+            data = self.binanceClient.get_historical_klines(symbol=pair, 
+                                                            interval=binanceClient.KLINE_INTERVAL_1MINUTE, 
+                                                            start_str=int(timestampRange.startTime*1000),
+                                                            end_str=int(timestampRange.endTime*1000))
             
             if len(data)>0:
             
@@ -62,7 +62,7 @@ class binance_api():
                     df   = pd.DataFrame(np.array(data).T,columns).T
                 else:
                     df = pd.concat([df,pd.DataFrame(np.array(data).T,columns).T],axis=0)
-
+                
         df[["openTime","volume","open"]] = df[["openTime","volume","open"]].applymap(float)
         df["timestamp"]  = df["openTime"].divide(1000).astype(int)
         df["rate"] = df["open"]            

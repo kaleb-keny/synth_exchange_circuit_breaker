@@ -62,10 +62,10 @@ class db_manager():
                 '''
                 con.execute(sql)
 
-            if not "binance" in availableTablesList:
+            if not "oracle" in availableTablesList:
                 sql=\
                 '''
-                CREATE table binance
+                CREATE table oracle
                 (                
                 timestamp INT unsigned,
                 rate DECIMAL(65,0),
@@ -75,7 +75,19 @@ class db_manager():
                 '''
                 con.execute(sql)
 
+    def import_all(self,tbList=['oracle_eth','oracle_btc']):
 
+        for tbName in tbList:
+            df = pd.read_csv(r"input\{}.csv".format(tbName))
+            df.drop(columns=[df.columns[0]],inplace=True)
+            df["ticker"] = tbName[-3:]
+            with get_mysql_connection(self.conf) as con:
+                con.execute("DROP TABLE IF EXISTS temp;")
+                df.to_sql("temp",index=False,con=con)
+                con.execute("INSERT IGNORE INTO oracle (select * from temp);")
+                con.execute("DROP TABLE IF EXISTS temp;")
+            print(f"Table {tbName} has been imported into sql server.")
+        
 
 #%%
 if __name__=='__main__':

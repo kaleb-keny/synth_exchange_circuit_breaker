@@ -3,3 +3,5 @@
 *.ini
 *.pyc
 config/conf.yaml
+input/oracle_btc.csv
+input/oracle_eth.csv

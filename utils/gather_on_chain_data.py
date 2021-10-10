@@ -6,7 +6,7 @@ from collections import namedtuple
 
 class gather_link_prices(http_client):
     
-    def __init__(self,conf):
+    def __init__(self,conf,link):
 
         self.tuple = namedtuple('topic', ['function',
                                           'initialBlock',
@@ -15,6 +15,7 @@ class gather_link_prices(http_client):
                                           'endingBlockHex',
                                           'topic',
                                           'address'])
+        self.linkContracts = link
 
         super().__init__(conf)
 
@@ -43,22 +44,16 @@ class gather_link_prices(http_client):
         #initialBlockHex
         #endingBlockHex
         
-        missingTuples.append(self.tuple(function='answer',
-                                        topic='0x0559884fd3a460db3073b7fc896cc77986f16e378210ded43186175bf646fc5f',
-                                        initialBlock=initialBlock,
-                                        endingBlock=endingBlock,
-                                        initialBlockHex=hex(initialBlock),
-                                        endingBlockHex=hex(endingBlock),
-                                        address='0x37bC7498f4FF12C19678ee8fE19d713b87F6a9e6'#sETH
-                                        ))
-        missingTuples.append(self.tuple(function='answer',
-                                        initialBlock=initialBlock,
-                                        endingBlock=endingBlock,
-                                        initialBlockHex=hex(initialBlock),
-                                        endingBlockHex=hex(endingBlock),
-                                        topic='0x0559884fd3a460db3073b7fc896cc77986f16e378210ded43186175bf646fc5f',
-                                        address='0xAe74faA92cB67A95ebCAB07358bC222e33A34dA7'#sBTC
-                                        ))
+        for ticker, address in self.linkContracts.items():
+                    
+            missingTuples.append(self.tuple(function='answer',
+                                            topic='0x0559884fd3a460db3073b7fc896cc77986f16e378210ded43186175bf646fc5f',
+                                            initialBlock=initialBlock,
+                                            endingBlock=endingBlock,
+                                            initialBlockHex=hex(initialBlock),
+                                            endingBlockHex=hex(endingBlock),
+                                            address=address
+                                            ))
         
         df = pd.DataFrame(missingTuples)
 
