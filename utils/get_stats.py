@@ -229,12 +229,22 @@ class stats():
                             resultDF = pd.concat([resultDF,pd.DataFrame(resultDict,index=[0])])
         
         
-        #prepare pivot table output
+        #print downtime stats
         resultPivot = pd.pivot_table(data=resultDF,
                                      values='waitingTime',
                                      index='timespan',
                                      columns='minAnswerCount',
                                      aggfunc='mean',
+                                     fill_value=0)
+        
+        print(tabulate(resultPivot, headers = 'keys', tablefmt = 'psql'))
+        
+        #print # of occurences
+        resultPivot = pd.pivot_table(data=resultDF,
+                                     values='waitingTime',
+                                     index='timespan',
+                                     columns='minAnswerCount',
+                                     aggfunc='count',
                                      fill_value=0)
         
         print(tabulate(resultPivot, headers = 'keys', tablefmt = 'psql'))
