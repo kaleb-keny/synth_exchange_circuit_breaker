@@ -26,8 +26,10 @@ if __name__ == '__main__':
             python main.py -r data --t 1618781516 1618781616
 
     - compute stats
-            python main.py -r compute --t 1618781516 1618781716
+            python main.py -r stats --t 1618781516 1618781716 --u eth
             
+    - compute waiting time averages
+            python main.py -r waiting --t 1618781516 1618781716 --u eth
     '''
     
     parser = argparse.ArgumentParser(description=description,formatter_class=RawTextHelpFormatter)
@@ -36,8 +38,8 @@ if __name__ == '__main__':
                         "-run",
                         type=str,
                         required=True,
-                        choices=['init','import','data',"stats"],
-                        help='''Enter one of the following: init, import, data, stats''')
+                        choices=['init','import','data',"stats","waiting"],
+                        help='''Enter one of the following: init, import, data, stats, waiting''')
 
     parser.add_argument("--t",
                         type=int,
@@ -88,6 +90,15 @@ if __name__ == '__main__':
         stats.launch_stats(ticker=args.u, 
                            startTimestamp=args.t[0], 
                            endTimestamp=args.t[1])
+
+    elif args.r == 'waiting':
+        assert args.u in ['eth','btc'], "ticker need to be added"
+        assert len(args.t)==2, "Need to include start and end time"
+        assert args.t[0]<args.t[1], "start timestamp needs to be < end timestamp"
+        stats = stats(conf,link)
+        stats.print_average_waiting(ticker=args.u, 
+                                    startTimestamp=args.t[0], 
+                                    endTimestamp=args.t[1])
                 
     
     else:

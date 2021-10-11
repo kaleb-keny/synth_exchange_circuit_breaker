@@ -10,8 +10,8 @@ class stats():
         self.conf          = conf
         self.linkContracts = link
         self.timespanList  = [10,20,40,60] #in minutes
-    
-    
+        self.answerCountList = range(2,6)
+                            
     def launch_stats(self,ticker,startTimestamp,endTimestamp):
         #Calculate stats, importing relevant data
         df = self.compute_stats(ticker, startTimestamp, endTimestamp)
@@ -174,8 +174,90 @@ class stats():
                            legend=False)
         
         plot.savefig(r'output/plot.png', dpi=400)
+
+
+    def print_average_waiting(self,ticker,startTimestamp,endTimestamp):
+        #import data
+        _, linkDF = self.import_data(ticker, startTimestamp, endTimestamp)
+        
+        #prepare the timestamp vector (representing the time when prices where pushed)
+        timestampVector = linkDF["timestamp"].copy()
+        timestampDF     = linkDF["timestamp"].copy()
+        
+        #Generate df timestamps shifted up (as to look at timestamps with future stamps shot horizontally)
+        for x in range(1,20):
+            timestampDF  = pd.concat([timestampDF,timestampVector[x:].astype(int).reset_index(drop=True)],ignore_index=True,axis=1)
+        
+        timestampDF.dropna(inplace=True)
+        
+        #use the most future stamp as the latest vector
+        timestampVector = timestampDF.iloc[:,-1]
+        
+        #compute delta of latest stamp vector to previous timestamps
+        timedeltaDF = pd.DataFrame()
+        for x in range(0,19):
+            timedeltaDF = pd.concat([timedeltaDF,timestampVector-timestampDF.iloc[:,x]],ignore_index=True,axis=1)
+        
+        #Iterate on timespans (10 min / 20 min / 40 min....)
+        for timespan in self.timespanList:
+            for minAnswerCount in self.answerCountList: #iterate on # of answers that trigger a breaker 
+                #take a copy of timedeltaDF
+                tempTimeDeltaDF = timedeltaDF.copy()
+                #check how many answers were given at each answer update in the last timespan
+                filter_=((tempTimeDeltaDF < timespan*60).sum(axis=1)>=minAnswerCount )
+                #filter out timestamps that meet criteria
+                timestampWithCircuitBreakerActive = timestampVector[filter_]
+                #for each of these timestamps, find the time awaited
+                for timestamp in timestampWithCircuitBreakerActive:
+                    waitingTime= self.get_waiting_time(timestamp=timestamp, 
+                                                       timestampVector=timestampVector, 
+                                                       timespan=timespan, 
+                                                       minAnswerCount=minAnswerCount )
+                    if waitingTime !=0:
+                        #none waiting time is obtained in instance where 
+                        #we don't have enough look forward data
+                        
+                        #save results
+                        resultDict = {'waitingTime':waitingTime,
+                                      'minAnswerCount':minAnswerCount ,
+                                      'timespan':timespan,
+                                      'startingTimestamp':timestamp}
+                        
+                        if not 'resultDF' in vars():
+                            resultDF   = pd.DataFrame(resultDict,index=[0])
+                        else:
+                            resultDF = pd.concat([resultDF,pd.DataFrame(resultDict,index=[0])])
+        
+        
+        #prepare pivot table output
+        resultPivot = pd.pivot_table(data=resultDF,
+                                     values='waitingTime',
+                                     index='timespan',
+                                     columns='minAnswerCount',
+                                     aggfunc='mean',
+                                     fill_value=0)
+        
+        print(tabulate(resultPivot, headers = 'keys', tablefmt = 'psql'))
                     
-    
+    def get_waiting_time(self,timestamp,timestampVector,timespan,minAnswerCount):
+        
+        #iterate on up to 2 hour into the future with 1 min steps
+        for timeinterval in range(0,120):
+            
+            #newtimestamp is going forward into the future by 1 min steps
+            newTimestamp      = timestamp + timeinterval*60
+            #previous timestamp is going back by the timespan
+            previousTimestamp = newTimestamp - timespan*60
+            
+            #get number of answers between newTimestamp and previousTimestamp
+            answerCount = timestampVector.between(previousTimestamp,newTimestamp).sum()
+            
+            if answerCount < minAnswerCount:
+                #exit condition since min answer count below threshold
+                return newTimestamp - timestamp #waiting time is just delta between initial timestamp and newTimestamp
+        
+        #not enough data into the future to tell
+        return 0
 #%%
 if __name__ == '__main__':
     self = stats(conf, link)
